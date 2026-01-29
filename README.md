@@ -2,268 +2,171 @@
 
 Agent Skills for MetaTrader 5 using [pdmt5](https://github.com/dceoy/pdmt5).
 
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Overview
 
-`mt5-agent-skills` provides a set of structured skills that enable AI agents to interact with MetaTrader 5 (MT5) for trading operations. Built on top of `pdmt5`, it offers:
-
-- **Validated Inputs**: All skill parameters are validated using Pydantic models
-- **Standardized Outputs**: Consistent `SkillResult` format across all skills
-- **Tool Definitions**: Auto-generated tool definitions for AI agent frameworks
-- **Categorized Skills**: Skills organized by domain (account, market_data, trading, analysis)
+This repository contains Agent Skills in the [Anthropic Skills format](https://github.com/anthropics/skills) for interacting with MetaTrader 5 (MT5) trading platform. These skills enable AI agents like Claude to execute trading operations, retrieve market data, and perform analysis.
 
 ## Requirements
 
-- Python 3.11+
 - Windows OS (required by MetaTrader 5)
 - MetaTrader 5 terminal installed
+- Python 3.11+
+- pdmt5 package: `pip install pdmt5`
 
-## Installation
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| [mt5-connection](skills/mt5-connection/) | Connect to MT5, get account/terminal info |
+| [mt5-market-data](skills/mt5-market-data/) | Retrieve symbols, prices, and OHLCV data |
+| [mt5-trading](skills/mt5-trading/) | Place orders, manage positions |
+| [mt5-analysis](skills/mt5-analysis/) | Calculate margin, profit, risk |
+
+## Structure
+
+Each skill follows the Anthropic Skills format:
+
+```
+skills/
+├── mt5-connection/
+│   ├── SKILL.md              # Skill instructions
+│   └── scripts/
+│       └── mt5_context.py    # Connection context manager
+├── mt5-market-data/
+│   ├── SKILL.md
+│   ├── scripts/
+│   │   └── fetch_rates.py    # Fetch OHLCV data
+│   └── references/
+│       └── timeframes.md     # Timeframe reference
+├── mt5-trading/
+│   ├── SKILL.md
+│   ├── scripts/
+│   │   ├── place_order.py    # Place market orders
+│   │   └── close_positions.py
+│   └── references/
+│       └── return_codes.md   # Trade return codes
+└── mt5-analysis/
+    ├── SKILL.md
+    └── scripts/
+        └── analyze_trade.py  # Trade analysis
+```
+
+## Usage with Claude
+
+These skills are designed for use with Claude Code or other AI agents that support the Anthropic Skills format.
+
+### Quick Start
+
+1. Clone this repository
+2. Skills will be automatically available when the skill directory is configured
+
+### Manual Usage
+
+Skills can also be used as reference documentation. Each `SKILL.md` contains:
+- YAML frontmatter with name and description
+- Markdown instructions with code examples
+- References to bundled scripts
+
+### Using Scripts Directly
 
 ```bash
-pip install mt5-agent-skills
+# Fetch OHLCV rates
+python skills/mt5-market-data/scripts/fetch_rates.py \
+  --login 12345678 \
+  --password "your_password" \
+  --server "Broker-Server" \
+  --symbol EURUSD \
+  --timeframe H1 \
+  --count 100
+
+# Analyze a trade
+python skills/mt5-analysis/scripts/analyze_trade.py \
+  --login 12345678 \
+  --password "your_password" \
+  --server "Broker-Server" \
+  --symbol EURUSD \
+  --volume 0.1 \
+  --side BUY \
+  --sl 1.0800 \
+  --tp 1.1200
+
+# Place order (dry run by default)
+python skills/mt5-trading/scripts/place_order.py \
+  --login 12345678 \
+  --password "your_password" \
+  --server "Broker-Server" \
+  --symbol EURUSD \
+  --volume 0.01 \
+  --side BUY
+
+# Execute order (add --execute flag)
+python skills/mt5-trading/scripts/place_order.py \
+  --login 12345678 \
+  --password "your_password" \
+  --server "Broker-Server" \
+  --symbol EURUSD \
+  --volume 0.01 \
+  --side BUY \
+  --execute
 ```
 
-Or install from source:
+## Skill Descriptions
 
-```bash
-git clone https://github.com/dceoy/mt5-agent-skills.git
-cd mt5-agent-skills
-pip install -e .
-```
+### mt5-connection
 
-## Quick Start
+Initialize and manage MT5 terminal connections. Required before using other skills.
 
-```python
-from mt5_agent_skills import get_registry, get_client_manager
+- Connect with login credentials
+- Get account information (balance, equity, margin)
+- Get terminal information (version, status)
+- Context manager for automatic cleanup
 
-# Configure and connect to MT5
-manager = get_client_manager()
-manager.configure(
-    login=12345678,
-    password="your_password",
-    server="YourBroker-Server"
-)
-manager.connect()
+### mt5-market-data
 
-# Get the skill registry
-registry = get_registry()
+Retrieve market data from MT5.
 
-# Execute skills
-account_info = registry.execute("get_account_info")
-print(account_info.to_agent_response())
+- List available symbols with filtering
+- Get symbol specifications
+- Fetch current bid/ask prices
+- Retrieve OHLCV historical data
+- Get tick-by-tick data
 
-# Get EURUSD rates
-rates = registry.execute(
-    "get_latest_rates",
-    symbol="EURUSD",
-    timeframe="H1",
-    count=100
-)
-print(rates.data)
+### mt5-trading
 
-# Disconnect when done
-manager.disconnect()
-```
+Execute trades and manage positions.
 
-### Using Context Manager
+- Place market orders (buy/sell)
+- View open positions with metrics
+- Close positions (single or batch)
+- Update stop loss and take profit
+- View order and deal history
 
-```python
-from mt5_agent_skills import mt5_connection, get_registry
+### mt5-analysis
 
-with mt5_connection(12345678, "password", "Server"):
-    registry = get_registry()
+Perform trading calculations.
 
-    # Get available symbols
-    symbols = registry.execute("get_symbols", group="*USD*")
-    print(symbols.data)
+- Calculate margin requirements
+- Calculate potential profit/loss
+- Determine maximum volume for margin
+- Analyze spread and trading costs
+- Risk/reward ratio calculation
 
-    # Place a market order (with dry_run for safety)
-    order = registry.execute(
-        "place_market_order",
-        symbol="EURUSD",
-        volume=0.01,
-        order_side="BUY",
-        dry_run=True
-    )
-    print(order.data)
-```
+## Safety
 
-## Available Skills
+Trading involves financial risk. The trading skill includes:
 
-### Account Skills
-
-| Skill | Description |
-|-------|-------------|
-| `get_account_info` | Retrieve account balance, equity, margin, and settings |
-| `get_terminal_info` | Get MT5 terminal version and connection status |
-
-### Market Data Skills
-
-| Skill | Description |
-|-------|-------------|
-| `get_symbols` | List available trading symbols with optional filtering |
-| `get_symbol_info` | Get detailed symbol specifications and trading conditions |
-| `get_tick` | Get current bid/ask prices for a symbol |
-| `get_latest_rates` | Fetch recent OHLCV bars for a symbol |
-| `get_rates_range` | Get OHLCV data for a specific date range |
-| `get_latest_ticks` | Get tick-by-tick data for high-frequency analysis |
-
-### Trading Skills
-
-| Skill | Description |
-|-------|-------------|
-| `get_orders` | Retrieve pending orders |
-| `get_positions` | Get open positions with metrics |
-| `place_market_order` | Execute market buy/sell orders |
-| `close_positions` | Close open positions |
-| `update_sltp` | Modify stop loss and take profit |
-| `get_history_orders` | Get historical orders |
-| `get_history_deals` | Get executed deals history |
-
-### Analysis Skills
-
-| Skill | Description |
-|-------|-------------|
-| `calculate_margin` | Calculate margin required for a trade |
-| `calculate_profit` | Calculate potential profit/loss |
-| `calculate_max_volume` | Find maximum tradeable volume for given margin |
-| `calculate_spread` | Get current spread and spread ratio |
-
-## AI Agent Integration
-
-### Getting Tool Definitions
-
-Generate tool definitions compatible with OpenAI, Anthropic, and other AI frameworks:
-
-```python
-from mt5_agent_skills import get_registry
-
-registry = get_registry()
-tools = registry.get_tool_definitions()
-
-# Use with OpenAI
-response = openai.chat.completions.create(
-    model="gpt-4",
-    messages=[...],
-    tools=tools
-)
-```
-
-### Executing Skills from Agent Responses
-
-```python
-import json
-
-def handle_tool_call(tool_name: str, arguments: str) -> str:
-    """Handle a tool call from an AI agent."""
-    registry = get_registry()
-    params = json.loads(arguments)
-    result = registry.execute(tool_name, **params)
-    return result.to_agent_response()
-```
-
-### Custom Skill Registration
-
-```python
-from mt5_agent_skills import BaseSkill, SkillInput, SkillResult, get_registry
-from pydantic import Field
-
-class MyCustomInput(SkillInput):
-    symbol: str = Field(description="Trading symbol")
-    threshold: float = Field(description="Alert threshold")
-
-class MyCustomSkill(BaseSkill):
-    @property
-    def name(self) -> str:
-        return "my_custom_skill"
-
-    @property
-    def description(self) -> str:
-        return "A custom skill for specialized analysis"
-
-    @property
-    def category(self) -> str:
-        return "custom"
-
-    @property
-    def input_model(self):
-        return MyCustomInput
-
-    def execute(self, **kwargs) -> SkillResult:
-        # Your custom logic here
-        return SkillResult(success=True, data={"result": "..."})
-
-# Register the custom skill
-registry = get_registry()
-registry.register(MyCustomSkill())
-```
-
-## Skill Categories
-
-```python
-from mt5_agent_skills import get_registry
-
-registry = get_registry()
-
-# List all categories
-categories = registry.get_categories()
-# ['account', 'market_data', 'trading', 'analysis']
-
-# Get skills by category
-trading_skills = registry.list_skills_by_category("trading")
-for skill in trading_skills:
-    print(f"{skill.name}: {skill.description}")
-```
-
-## Error Handling
-
-All skills return a `SkillResult` object:
-
-```python
-result = registry.execute("get_symbol_info", symbol="INVALID")
-
-if result.success:
-    print(result.data)
-else:
-    print(f"Error: {result.error}")
-```
-
-## Timeframes
-
-Supported timeframes for OHLCV data:
-
-- Minutes: `M1`, `M2`, `M3`, `M4`, `M5`, `M6`, `M10`, `M12`, `M15`, `M20`, `M30`
-- Hours: `H1`, `H2`, `H3`, `H4`, `H6`, `H8`, `H12`
-- Daily/Weekly/Monthly: `D1`, `W1`, `MN1`
-
-## Development
-
-```bash
-# Clone the repository
-git clone https://github.com/dceoy/mt5-agent-skills.git
-cd mt5-agent-skills
-
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run linting
-ruff check .
-
-# Run type checking
-mypy src/mt5_agent_skills
-```
-
-## License
-
-This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+- `dry_run=True` mode for order validation without execution
+- Scripts default to dry run mode
+- Clear documentation of return codes and errors
 
 ## Related Projects
 
 - [pdmt5](https://github.com/dceoy/pdmt5) - Pandas-based MetaTrader 5 data handler
 - [MetaTrader5](https://pypi.org/project/MetaTrader5/) - Official MT5 Python package
+- [Anthropic Skills](https://github.com/anthropics/skills) - Skills format specification
+
+## License
+
+AGPL-3.0 - See [LICENSE](LICENSE) for details.
